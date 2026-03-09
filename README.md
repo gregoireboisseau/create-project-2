@@ -6,16 +6,16 @@ A Python script to quickly scaffold new web projects with your preferred framewo
 
 - ✅ **Node.js version check** - Ensures Node.js 20+ is installed (with nvm support)
 - ✅ **Multiple framework support** - React, Next.js, Astro, Symfony, or empty project
-- ✅ **Automated setup** - Creates README, .gitignore, ESLint & Prettier configs
+- ✅ **Package manager choice** - npm, yarn, or pnpm
+- ✅ **Automated setup** - Creates README, .gitignore, ESLint & Prettier configs (JS/TS projects only)
 - ✅ **License selection** - MIT, Apache 2.0, GPL v3, or none
-- ✅ **Smart defaults** - Uses npm as package manager, includes useful configurations
-- ✅ **Auto-install dependencies** - Can install PHP, Composer for Symfony projects
+- ✅ **Auto-install dependencies** - Can install PHP, Composer for Symfony projects (with confirmation)
 
 ## Requirements
 
 - **Python 3.10+** (for modern type hints support)
 - **Node.js 20+** (will be checked automatically)
-- **npm** (comes with Node.js)
+- **npm** (comes with Node.js, used to install yarn/pnpm if needed)
 
 Optional dependencies based on framework choice:
 - **nvm** - For automatic Node.js version management
@@ -56,10 +56,20 @@ Run the script and follow the interactive prompts:
    - Falls back to Composer (can be auto-installed)
    - PHP can be auto-installed on Ubuntu/Debian/macOS
 
+### Package Manager
+
+The script lets you choose between:
+- **npm** - Standard Node.js package manager (recommended)
+- **yarn** - Fast and reliable package manager
+- **pnpm** - Fast, disk space efficient package manager
+
+If your chosen package manager is not installed, the script offers to install it automatically.
+
 ### Interactive Prompts
 
 The script will ask you for:
 - Project name
+- Package manager (npm/yarn/pnpm)
 - Project type (framework)
 - Framework-specific options (if applicable)
 - Project description
@@ -68,6 +78,7 @@ The script will ask you for:
 
 ### What Gets Created
 
+For JavaScript/TypeScript projects:
 ```
 your-project/
 ├── src/                 # Source files (framework-dependent)
@@ -81,6 +92,20 @@ your-project/
 └── package.json         # Node.js dependencies
 ```
 
+For Symfony projects:
+```
+your-project/
+├── config/              # Symfony configuration
+├── public/              # Web root
+├── src/                 # PHP source files
+├── templates/           # Twig templates
+├── .gitignore           # Git ignore rules
+├── README.md            # Project documentation
+├── LICENSE              # License file (if selected)
+├── composer.json        # PHP dependencies
+└── symfony.lock         # Symfony lock file
+```
+
 ## Example
 
 ```bash
@@ -90,6 +115,12 @@ $ ./create.py
 ==================================================
 ✓ Using Node.js 20.11.0
 📁 Project name: my-awesome-app
+
+📦 Choose your package manager:
+1) npm - Standard Node.js package manager (recommended)
+2) yarn - Fast and reliable package manager
+3) pnpm - Fast, disk space efficient package manager
+→ Your choice [1-3]: 1
 
 🌐 Project type:
 1) HTML/CSS (empty project)
@@ -135,7 +166,7 @@ To get started:
 
 ## ESLint & Prettier Configuration
 
-The script creates ready-to-use configurations:
+For JavaScript/TypeScript projects, the script creates ready-to-use configurations:
 
 ### ESLint Rules
 - 2-space indentation
@@ -158,9 +189,11 @@ For Symfony projects, the script needs:
 2. **Composer** (dependency manager)
 
 If either is missing, the script will offer to install them automatically:
-- **Ubuntu/Debian**: PHP installed via `apt`
-- **macOS**: PHP installed via Homebrew (if available)
+- **Ubuntu/Debian**: PHP installed via `apt` (with sudo confirmation)
+- **macOS**: PHP installed via Homebrew (with confirmation)
 - **Other systems**: Manual installation instructions provided
+
+⚠️  **Note**: The script always asks for confirmation before running commands with `sudo`.
 
 ## License
 

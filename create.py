@@ -7,6 +7,9 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+# Global variable for package manager
+PACKAGE_MANAGER = "npm"
+
 
 def run_command(cmd: list[str], cwd: str | None = None) -> subprocess.CompletedProcess:
     """Execute a shell command and return the result."""
@@ -95,6 +98,75 @@ def ensure_node_version() -> bool:
         sys.exit(1)
 
     return False
+
+
+def get_package_manager() -> str:
+    """Prompt for package manager selection."""
+    print("\n📦 Choose your package manager:")
+    print("1) npm - Standard Node.js package manager (recommended)")
+    print("2) yarn - Fast and reliable package manager")
+    print("3) pnpm - Fast, disk space efficient package manager")
+
+    while True:
+        choice = input("→ Your choice [1-3]: ").strip()
+        if choice == "1":
+            return "npm"
+        elif choice == "2":
+            return "yarn"
+        elif choice == "3":
+            return "pnpm"
+        print("❌ Invalid option. Please try again.")
+
+
+def check_package_manager(pm: str) -> bool:
+    """Check if package manager is available."""
+    try:
+        result = subprocess.run([pm, "--version"], capture_output=True, text=True)
+        return result.returncode == 0
+    except FileNotFoundError:
+        return False
+
+
+def install_package_manager(pm: str) -> bool:
+    """Install package manager globally via npm."""
+    print(f"⏳ Installing {pm}...")
+    if pm == "yarn":
+        result = subprocess.run(["npm", "install", "-g", "yarn"])
+    elif pm == "pnpm":
+        result = subprocess.run(["npm", "install", "-g", "pnpm"])
+    else:
+        return False
+    return result.returncode == 0
+
+
+def ensure_package_manager(pm: str) -> None:
+    """Ensure package manager is installed, offer to install if not."""
+    global PACKAGE_MANAGER
+    PACKAGE_MANAGER = pm
+
+    if not check_package_manager(pm):
+        print(f"❌ {pm} is not installed.")
+        print(f"🔧 Would you like to install {pm}? (y/n)")
+        response = input("→ ").strip().lower()
+
+        if response in ("y", "yes"):
+            # Check if npm is available for installation
+            if not check_package_manager("npm"):
+                print("❌ npm is required to install yarn/pnpm. Please install Node.js first.")
+                sys.exit(1)
+
+            if install_package_manager(pm):
+                print(f"✓ {pm} installed successfully")
+            else:
+                print(f"❌ Failed to install {pm}. Please install manually.")
+                if pm == "yarn":
+                    print("   https://yarnpkg.com/getting-started/install")
+                elif pm == "pnpm":
+                    print("   https://pnpm.io/installation")
+                sys.exit(1)
+        else:
+            print(f"❌ {pm} is required. Please install it manually.")
+            sys.exit(1)
 
 
 def get_project_name() -> str:
@@ -395,13 +467,13 @@ def create_readme(project_name: str, description: str) -> None:
 ## Installation
 
 ```bash
-npm install
+{PACKAGE_MANAGER} install
 ```
 
 ## Getting Started
 
 ```bash
-npm run dev
+{PACKAGE_MANAGER} run dev
 ```
 """
 
@@ -426,8 +498,8 @@ def create_react_project(project_name: str, react_type: str) -> None:
     print("⚛️  React project created")
 
     if react_type == "2":
-        print("⏳ Installing react-router-dom...")
-        run_command(["npm", "install", "react-router-dom"])
+        print(f"⏳ Installing react-router-dom with {PACKAGE_MANAGER}...")
+        run_command([PACKAGE_MANAGER, "install", "react-router-dom"])
 
         # Create directory structure
         os.makedirs("src/pages", exist_ok=True)
@@ -518,7 +590,12 @@ def has_php() -> bool:
 
 def install_php_ubuntu() -> bool:
     """Install PHP on Ubuntu/Debian systems."""
-    print("⏳ Installing PHP...")
+    print("⏳ Installing PHP (requires sudo)...")
+    print("⚠️  This will run: sudo apt update && sudo apt install -y php php-cli php-mbstring php-xml php-curl php-zip")
+    response = input("→ Do you want to proceed? (y/n): ").strip().lower()
+    if response not in ("y", "yes"):
+        print("ℹ️  PHP installation cancelled.")
+        return False
     result = subprocess.run(
         ["bash", "-c", "sudo apt update && sudo apt install -y php php-cli php-mbstring php-xml php-curl php-zip"]
     )
@@ -528,6 +605,11 @@ def install_php_ubuntu() -> bool:
 def install_php_macos() -> bool:
     """Install PHP on macOS using Homebrew."""
     print("⏳ Installing PHP via Homebrew...")
+    print("⚠️  This will run: brew install php")
+    response = input("→ Do you want to proceed? (y/n): ").strip().lower()
+    if response not in ("y", "yes"):
+        print("ℹ️  PHP installation cancelled.")
+        return False
     result = subprocess.run(["brew", "install", "php"])
     return result.returncode == 0
 
@@ -576,16 +658,32 @@ def has_composer() -> bool:
 
 def install_composer() -> bool:
     """Install Composer globally."""
-    print("⏳ Installing Composer...")
-    # Download and install Composer with sudo for the move operation
-    result = subprocess.run(
-        ["bash", "-c", "curl -sS https://getcomposer.org/installer | php && sudo mv composer.phar /usr/local/bin/composer"]
+    print("⏳ Installing Composer (requires sudo)...")
+    print("⚠️  This will download the installer and run: sudo mv composer.phar /usr/local/bin/composer")
+    response = input("→ Do you want to proceed? (y/n): ").strip().lower()
+    if response not in ("y", "yes"):
+        print("ℹ️  Composer installation cancelled.")
+        return False
+
+    # Download installer first
+    print("⏳ Downloading Composer installer...")
+    download_result = subprocess.run(
+        ["bash", "-c", "curl -sS https://getcomposer.org/installer | php"]
     )
-    return result.returncode == 0
+    if download_result.returncode != 0:
+        print("❌ Failed to download Composer installer.")
+        return False
+
+    # Move to bin with sudo
+    print("⏳ Moving composer.phar to /usr/local/bin/composer...")
+    move_result = subprocess.run(
+        ["bash", "-c", "sudo mv composer.phar /usr/local/bin/composer"]
+    )
+    return move_result.returncode == 0
 
 
-def create_symfony_project(project_name: str) -> None:
-    """Create a Symfony project."""
+def create_symfony_project(project_name: str) -> str:
+    """Create a Symfony project. Returns the creation method ('cli' or 'composer')."""
     print("⏳ Creating Symfony project...")
 
     # Check if Symfony CLI is available
@@ -599,7 +697,7 @@ def create_symfony_project(project_name: str) -> None:
         run_command(["symfony", "new", project_name, "--webapp"])
         os.chdir(project_name)
         print("🎻 Symfony project created with Symfony CLI")
-        return
+        return "cli"
 
     # Symfony CLI not available, check for PHP and Composer
     if not has_php():
@@ -645,6 +743,14 @@ def create_symfony_project(project_name: str) -> None:
     run_command(["composer", "create-project", "symfony/skeleton", project_name])
     os.chdir(project_name)
     print("🎻 Symfony project created with Composer")
+    return "composer"
+
+
+def install_dev_tools() -> None:
+    """Install ESLint and Prettier if not skipped."""
+    print(f"\n⏳ Installing ESLint and Prettier with {PACKAGE_MANAGER}...")
+    run_command([PACKAGE_MANAGER, "install", "-D", "eslint", "prettier"])
+    print("✓ ESLint and Prettier installed")
 
 
 def main():
@@ -659,12 +765,17 @@ def main():
     # Project name
     project_name = get_project_name()
 
+    # Package manager selection
+    pm_choice = get_package_manager()
+    ensure_package_manager(pm_choice)
+
     # Project type
     project_type = get_project_type()
 
     # Specific options based on type
     react_type = None
     nextjs_options = None
+    symfony_method = None
 
     if project_type == "2":  # React
         react_type = get_react_type()
@@ -690,17 +801,16 @@ def main():
     elif project_type == "4":  # Astro
         create_astro_project(project_name)
     elif project_type == "5":  # Symfony
-        create_symfony_project(project_name)
+        symfony_method = create_symfony_project(project_name)
 
     # Create configuration files
     create_readme(project_name, description)
     create_gitignore()
-    create_eslint_prettier_config()
 
-    # Install ESLint and Prettier
-    print("\n⏳ Installing ESLint and Prettier...")
-    run_command(["npm", "install", "-D", "eslint", "prettier"])
-    print("✓ ESLint and Prettier installed")
+    # Only install ESLint/Prettier for JavaScript/TypeScript projects
+    if project_type in ("1", "2", "3", "4"):
+        create_eslint_prettier_config()
+        install_dev_tools()
 
     # Create license
     if license_choice and license_choice != "4":
@@ -711,7 +821,14 @@ def main():
     print("=" * 50)
     print(f"\nTo get started:")
     print(f"  cd {os.getcwd()}")
-    print(f"  npm run dev")
+    if project_type == "5":  # Symfony
+        if symfony_method == "cli":
+            print(f"  symfony serve")
+        else:  # composer
+            print(f"  symfony serve")
+            print(f"  # or: php -S localhost:8000 -t public/")
+    else:
+        print(f"  {PACKAGE_MANAGER} run dev")
 
 
 if __name__ == "__main__":
